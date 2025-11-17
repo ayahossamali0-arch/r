@@ -4,6 +4,6 @@ openai==0.28.0
 sentence-transformers==2.2.2
 numpy==1.26.4
 faiss-cpu==1.13.0
-camel_tools==1.4.1
 python-dotenv==1.0.0
 werkzeug==2.3.7
+
