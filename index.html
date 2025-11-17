@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>واجهة الطالب - النظام الذكي 🤖</title>
+<style>
+:root{
+  --accent1: #0f0684;
+  --accent2: #7b0f72;
+  --accent3: #ff66cc;
+  --white: #ffffff;
+  --bg: #fff;
+  --fg: #222;
+  --panel-bg: #fff;
+  --border-padding: 6px; /* عرض الحد الخارجي */
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;padding:0;font-family:"Cairo",sans-serif;direction:rtl}
+body { background: var(--bg); color:var(--fg); display:flex; align-items:center; justify-content:center; height:100vh; transition: background .25s,color .25s; }
+
+/* الحاوية العامة */
+.container {
+  width:100%;
+  max-width:1100px;
+  padding:20px;
+  height: calc(100vh - 40px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* الإطار الخارجي المتحرك (الحد بتدرج متحرك) */
+.fancy-frame {
+  width: 100%;
+  max-width: 920px;
+  height: 100%;
+  border-radius: 16px;
+  padding: var(--border-padding);
+  position: relative;
+  /* خلفية التدرج المتحرك */
+  background: linear-gradient(90deg, var(--accent1), var(--accent2), var(--accent3), var(--white), var(--accent1));
+  background-size: 300% 300%;
+  animation: gradientMove 8s linear infinite;
+  display:flex;
+  align-items:stretch;
+  justify-content:center;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.12);
+  --border-padding: 3px; 
+
+}
+
+/* تحريك التدرج */
+@keyframes gradientMove{
+  0%{ background-position:0% 50%;}
+  50%{ background-position:100% 50%;}
+  100%{ background-position:0% 50%;}
+}
+
+/* اللوحة الداخلية (المحادثة الفعلية) */
+.chat-box {
+  width:100%;
+  height:100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--panel-bg);
+  display:flex;
+  flex-direction:column;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+/* إزاحة بسيطة لتمييز الحد المتحرك كحافة خارجية */
+.chat-inner {
+  height:100%;
+  display:flex;
+  flex-direction:column;
+}
+
+/* منطقة الرسائل */
+.messages {
+  flex:1;
+  overflow-y:auto;
+  padding:10px 5PX;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.01), transparent);
+}
+
+/* شريط الإدخال ثابت أسفل (عند الشاشات الكبيرة داخل الحاوية) */
+.input-area {
+  display:flex;
+  gap:10px;
+  align-items:center;
+  padding:12px;
+  border-top:1px solid rgba(183, 146, 181, 0.454);
+  background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.9));
+}
+
+/* فقاعات الرسائل — ترتيب واضح: بوت على اليسار، مستخدم على اليمين */
+.message { display:flex; align-items:flex-end; gap:10px; max-width:100%; }
+.message img { width:40px; height:40px; border-radius:8px; object-fit:cover; flex-shrink:0; }
+
+/* بوت (يسار) */
+.message.bot {
+  flex-direction: row;
+  justify-content: flex-start;
+  align-self: flex-start;  /* يجعل الرسالة بالكامل تلتصق باليسار */
+}
+.message.bot .bubble { background:#e6f5ff; color:#003366; border:1px solid rgba(0,170,255,0.15); }
+
+/* مستخدم (يمين) */
+.message.user {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  align-self: flex-end;   /* يجعل الرسالة بالكامل تلتصق باليمين */
+}.message.user .bubble { background:#f7e6ff; color:#222; border:1px solid rgba(164,76,255,0.25); }
+
+.bubble {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.45;
+
+  width: fit-content;     /* البابلز على قد الكلام */
+  max-width: 100%;         /* ما تتعداش 76% لما الجمل تكون طويلة */
+  white-space: nowrap;     /* مهم جداً: يمنع النص القصير من النزول لسطر تاني */
+  word-break: break-word;
+
+  min-width: 45px;         /* شكل جميل لو كلمة صغيرة جداً */
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02) inset;
+}
+
+
+ /* مؤشرات typing */
+.typing .bubble { display:flex; align-items:center; gap:10px; min-width:100px; }
+.dots span { width:6px; height:6px; background:var(--accent1); border-radius:50%; display:inline-block; animation: blink 1.4s infinite; }
+.dots span:nth-child(2){ animation-delay:.25s } .dots span:nth-child(3){ animation-delay:.5s }
+@keyframes blink { 0%,80%,100%{opacity:.25} 40%{opacity:1} }
+
+/* ازرار ونص الإدخال */
+.input-area input {
+  flex:1;
+  border:none;
+  outline:none;
+  padding:10px 12px;
+  font-size:15px;
+  border-radius:10px;
+  background:transparent;
+  color:var(--fg);
+}
+.send-btn, .mode-btn {
+  width:40px; height:40px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; cursor:pointer; user-select:none;
+  background: linear-gradient(45deg,var(--accent1),var(--accent2),var(--accent3));
+  border:none;
+}
+
+/* لايتبوكس */
+#lightbox { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:9999; }
+#lightbox img { max-width:90%; max-height:90%; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.6); }
+#lightboxClose { position:absolute; top:18px; left:22px; font-size:36px; color:#fff; cursor:pointer; }
+
+/* داكن */
+body.dark { --bg:#000; --fg:#eee; --panel-bg:#050407; }
+body.dark .input-area { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02)); }
+body.dark .bubble { background: rgba(255,255,255,0.02); color:#e9e9e9; border-color: rgba(255,255,255,0.03); }
+body.dark .message.user .bubble { background:#3a1f5a; color:#fff; }
+body.dark .message.bot .bubble { background:#001133; color:#fff; }
+
+/* Responsive: على الموبايل نخلي الصندوق يغطي الشاشة كاملة ونجعل شريط الإدخال ثابت للأسفل */
+@media (max-width:900px){
+  .container{ padding:10px; height:100vh; }
+  .fancy-frame { max-width:100%; padding:4px; border-radius:0; }
+  .chat-box { border-radius:0; }
+  .messages { padding:16px 14px 120px 14px; } /* مساحة للشريط الثابت */
+  .input-area {
+    position: fixed;
+    left: calc(var(--border-padding));
+    right: calc(var(--border-padding));
+    bottom: calc(var(--border-padding));
+    z-index:60;
+    border-radius: 12px;
+    margin: 0 0 0 0;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+  }
+  body { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* تحسين اللمسات */
+@media (min-width:1400px){ .fancy-frame { max-width: 920px; } }
+
+
+/* ========================================================
+   الإضافات: جعل البابلز تتوسع تلقائيًا وتنكسر لأسطر متعددة
+   (هذه القواعد تأتي في آخر الـ CSS لتجاوز القواعد السابقة)
+   ======================================================== */
+
+/* نسمح بالانكسار الطبيعي وإجبار البابل على العرض التكيفي */
+.bubble{
+  /* السماح بالنزول لسطر جديد */
+  white-space: normal !important;
+
+  /* عرض يعتمد على المحتوى لكنه يقيد بالحد الأقصى */
+  width: auto !important;
+
+  /* مهم جداً: منع العنصر من التمدد داخل فلكس (يمنع المساحات الفارغة) */
+  flex: 0 0 auto !important;
+
+  /* نجعله عنصرًا يلف النص بإحكام حول المحتوى */
+  display: inline-block !important;
+  vertical-align: middle !important;
+
+  /* أقصى عرض بالنسبة لحاوية الرسائل — غيّري النسبة لو حبيتي */
+  max-width: 76% !important;
+
+  /* قواعد لكسر الكلمات الطويلة والروابط */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+
+  /* السماح بأن يكون صغيرًا جدًا عند الحاجة (ألغينا القيود التي تسببت في المساحة الفارغة) */
+  min-width: 0 !important;
+
+  /* الحفاظ على المظهر */
+  box-sizing: border-box;
+}
+
+/* صور داخل البابل لا تتجاوز عرض البابل */
+.bubble img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* نص داخل البابل نحافظ على بداية السطر المناسبة للـ RTL */
+.message .bubble { text-align: start; }
+
+/* عند الشاشات الصغيرة نخفض نسبة max-width حتى لا تغطي البابل كامل الشاشة */
+@media (max-width:420px){
+  .bubble { max-width: 86% !important; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="fancy-frame" aria-hidden="false">
+    <div class="chat-box" role="main" aria-label="نافذة المحادثة">
+      <div class="chat-inner">
+        <div class="messages" id="messages" aria-live="polite">
+          <div class="message bot">
+            <img src="/static/bot.png" alt="bot">
+            <div class="bubble">مرحبًا 👋 أنا نظام المساعدة الذكي! كيف يمكنني مساعدتك اليوم؟</div>
+          </div>
+        </div>
+
+        <div class="input-area" role="region" aria-label="منطقة الإدخال">
+          <input type="text" id="question" placeholder="اكتب سؤالك هنا..." aria-label="حقل السؤال">
+          <button id="sendBtn" class="send-btn" title="إرسال">↑</button>
+          <button id="modeBtn" class="mode-btn" title="تبديل الوضع">🌙</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="lightbox" role="dialog" aria-modal="true">
+  <span id="lightboxClose" aria-label="إغلاق">&times;</span>
+  <img id="lightboxImg" src="" alt="صورة مكبرة">
+</div>
+
+<audio id="messageSound" src="images/message.mp3" preload="auto"></audio>
+
+<script>
+const messages = document.getElementById("messages");
+const input = document.getElementById("question");
+const sendBtn = document.getElementById("sendBtn");
+const modeBtn = document.getElementById("modeBtn");
+const messageSound = document.getElementById("messageSound");
+
+let pendingMessage = null;
+
+function addMessage(sender, text){
+  const atBottom = messages.scrollHeight - messages.scrollTop <= messages.clientHeight + 20;
+  const msgDiv = document.createElement("div");
+  msgDiv.classList.add("message", sender);
+
+  const img = document.createElement("img");
+  img.src = sender === "user" ? "/static/user.png" : "/static/bot.png";
+  img.alt = sender === "user" ? "user" : "bot";
+
+  const bubble = document.createElement("div");
+  bubble.classList.add("bubble");
+
+  if (sender === "bot" && /<img/i.test(text)) {
+    bubble.innerHTML = text;
+  } else {
+    bubble.innerText = text;
+  }
+
+  msgDiv.appendChild(img);
+  msgDiv.appendChild(bubble);
+  messages.appendChild(msgDiv);
+
+  const imgs = bubble.querySelectorAll("img");
+  imgs.forEach(el => {
+    el.style.cursor = "zoom-in";
+    el.addEventListener("click", ()=> openLightbox(el.src));
+  });
+
+  if(atBottom) messages.scrollTop = messages.scrollHeight - 10;
+
+  if(sender === "bot"){
+    try { messageSound.currentTime = 0; messageSound.play(); } catch(e){}
+  }
+}
+
+function openLightbox(src){
+  const lightbox = document.getElementById("lightbox");
+  const lightboxImg = document.getElementById("lightboxImg");
+  lightboxImg.src = src;
+  lightbox.style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+document.getElementById("lightboxClose").addEventListener("click", ()=> {
+  document.getElementById("lightbox").style.display = "none";
+  document.body.style.overflow = "";
+});
+document.getElementById("lightbox").addEventListener("click", e=>{
+  if(e.target.id === "lightbox"){
+    document.getElementById("lightbox").style.display = "none";
+    document.body.style.overflow = "";
+  }
+});
+
+function showTyping(){
+  const typingDiv = document.createElement("div");
+  typingDiv.classList.add("message", "bot", "typing");
+  typingDiv.innerHTML = `<img src="/static/bot.png" alt="bot">
+    <div class="bubble">
+      <span class="dots"><span></span><span></span><span></span></span>
+    </div>`;
+  messages.appendChild(typingDiv);
+  messages.scrollTop = messages.scrollHeight;
+  return typingDiv;
+}
+
+function sendMessage(){
+  const question = input.value.trim();
+  if(!question) return;
+
+  addMessage("user", question);
+  input.value = "";
+
+  pendingMessage = showTyping();
+  sendBtn.innerText = "✖";
+
+  fetch("/ask", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({question})
+  })
+  .then(res => res.json())
+  .then(data => {
+    if(!pendingMessage) return;
+    messages.removeChild(pendingMessage);
+    pendingMessage = null;
+    sendBtn.innerText = "↑";
+    addMessage("bot", data.answer || "لا يوجد رد من الخادم.");
+  })
+  .catch(() => {
+    if(pendingMessage){
+      messages.removeChild(pendingMessage);
+      pendingMessage = null;
+      sendBtn.innerText = "↑";
+      addMessage("bot", "حدث خطأ أثناء معالجة السؤال.");
+    }
+  });
+}
+
+sendBtn.addEventListener("click", ()=>{
+  if(pendingMessage){
+    if(pendingMessage && pendingMessage.parentNode) messages.removeChild(pendingMessage);
+    pendingMessage = null;
+    sendBtn.innerText = "↑";
+  } else {
+    sendMessage();
+  }
+});
+input.addEventListener("keypress", e => { if(e.key === "Enter") sendMessage(); });
+
+modeBtn.addEventListener("click", ()=>{
+  document.body.classList.toggle("dark");
+  modeBtn.innerText = document.body.classList.contains("dark") ? "☀️" : "🌙";
+});
+
+window.addEventListener('load', ()=> { try { input.focus(); } catch(e){} });
+window.addEventListener('resize', ()=> { messages.scrollTop = messages.scrollHeight; });
+</script>
+</body>
+</html>
