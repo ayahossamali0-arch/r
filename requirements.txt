@@ -2,7 +2,7 @@ Flask==2.3.3
 mysql-connector-python==8.1.0
 openai==0.28.0
 sentence-transformers==2.2.2
-numpy==1.26.5
+numpy==1.26.4
 faiss-cpu==1.7.4
 camel_tools==1.4.1
 python-dotenv==1.0.0
