@@ -4,7 +4,7 @@ import re
 import time
 import threading
 from dotenv import load_dotenv
-from openai import OpenAI
+import openai
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import faiss
@@ -18,7 +18,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if OPENAI_API_KEY is None:
     raise ValueError("❌ لم يتم العثور على OPENAI_API_KEY في ملف .env")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+openai.api_key = OPENAI_API_KEY
 
 TOP_K = 5
 SIMILARITY_THRESHOLD = 0.55
@@ -91,46 +91,30 @@ def normalize_arabic(text: str) -> str:
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
-
 # ==============================
 # 🔥 ذكاء فهم النوايا
 # ==============================
 def detect_special_intent(text: str) -> Tuple[bool, str]:
     text_low = text.lower().strip()
 
-    greeting_patterns = [
-        r"مرحب", r"اهلا", r"السلام", r"هلا", r"صباح الخير", r"مساء الخير",
-        r"hi", r"hello", r"hey"
-    ]
+    greeting_patterns = [r"مرحب", r"اهلا", r"السلام", r"هلا", r"صباح الخير", r"مساء الخير", "hi", "hello", "hey"]
+    farewell_patterns = [r"مع السلامة", r"سلام", r"باي", r"وداع", r"الى اللقاء", "goodbye", "bye"]
+    thanks_patterns = [r"شكر", r"ممنون", "thx", "thank", "يسلمو"]
+    praise_patterns = [r"رائع", r"ممتاز", r"جميل", r"ذكي", r"عبقري", r"احسنت"]
+    hate_patterns = [r"اكرهك", r"بكرهك", "hate you", "i hate you"]
+
     for p in greeting_patterns:
         if re.search(p, text_low): return True, "greeting"
-
-    farewell_patterns = [
-        r"مع السلامة", r"سلام", r"باي", r"وداع", r"الى اللقاء", r"goodbye", r"bye"
-    ]
     for p in farewell_patterns:
         if re.search(p, text_low): return True, "farewell"
-
-    thanks_patterns = [
-        r"شكر", r"ممنون", r"thx", r"thank", r"يسلمو"
-    ]
     for p in thanks_patterns:
         if re.search(p, text_low): return True, "thanks"
-
-    praise_patterns = [
-        r"رائع", r"ممتاز", r"جميل", r"ذكي", r"عبقري", r"احسنت"
-    ]
     for p in praise_patterns:
         if re.search(p, text_low): return True, "praise"
-
-    hate_patterns = [
-        r"اكرهك", r"بكرهك", r"hate you", r"i hate you"
-    ]
     for p in hate_patterns:
         if re.search(p, text_low): return True, "hate"
 
     return False, ""
-
 
 # ==============================
 # 4️⃣ سؤال الطالب والرد
@@ -138,22 +122,14 @@ def detect_special_intent(text: str) -> Tuple[bool, str]:
 def rag_answer_final(user_question: str) -> str:
     threading.Thread(target=refresh_faiss_index_if_updated, daemon=True).start()
 
-    # ❗ كشف النصوص غير المفهومة هنا
     n = user_question.strip()
-
-    if len(n) < 3:
-        return "❗ النص غير واضح، يرجى توضيح سؤالك."
-
-    if re.fullmatch(r"[^A-Za-z0-9\u0600-\u06FF]+", n):
-        return "❗ النص غير واضح، يرجى توضيح سؤالك."
-
+    if len(n) < 3: return "❗ النص غير واضح، يرجى توضيح سؤالك."
+    if re.fullmatch(r"[^A-Za-z0-9\u0600-\u06FF]+", n): return "❗ النص غير واضح، يرجى توضيح سؤالك."
     if re.fullmatch(r"[a-zA-Z]{3,}", n) and not re.search(r"(what|when|where|why|how)", n):
         return "❗ النص غير واضح، يرجى توضيح سؤالك."
-
     if re.fullmatch(r"[أ-ي]{3,}", n) and len(set(n)) <= 2:
         return "❗ النص غير واضح، يرجى توضيح سؤالك."
 
-    # 👇 ردود النوايا
     intent_found, intent_type = detect_special_intent(user_question)
     if intent_found:
         responses = {
@@ -165,16 +141,16 @@ def rag_answer_final(user_question: str) -> str:
         }
         return responses.get(intent_type, "🙂 حاضر.")
 
-    # تحسين فهم السؤال باستخدام GPT
+    # تحسين السؤال باستخدام GPT
     try:
-        ai_understanding = client.chat.completions.create(
+        ai_understanding = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "أعد صياغة السؤال بشكل أوضح لغرض البحث داخل قاعدة بيانات نصية."},
                 {"role": "user", "content": user_question},
             ]
         )
-        refined_question = ai_understanding.choices[0].message.content.strip()
+        refined_question = ai_understanding['choices'][0]['message']['content'].strip()
     except Exception:
         refined_question = user_question
 
@@ -210,20 +186,19 @@ def rag_answer_final(user_question: str) -> str:
             return f"<img src='{best_item['file_url']}' style='max-width:300px;'>"
 
         try:
-            optimized_answer = client.chat.completions.create(
+            optimized_answer = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "قدّم جواباً واضحاً ومباشراً بناءً على النص المعطى."},
                     {"role": "user", "content": f"السؤال: {user_question}\n\nالنص:\n{best_item.get('content', '')}"},
                 ]
             )
-            return optimized_answer.choices[0].message.content.strip()
+            return optimized_answer['choices'][0]['message']['content'].strip()
         except Exception:
             return best_item.get("content", "")
 
     except Exception as e:
         return f"⚠️ حدث خطأ أثناء الإجابة: {e}"
-
 
 # ==============================
 # 5️⃣ تشغيل تفاعلي
@@ -237,3 +212,4 @@ if __name__ == "__main__":
             print("🤖: مع السلامة 👋")
             break
         print("🤖:", rag_answer_final(user_q))
+
